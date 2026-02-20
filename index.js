@@ -1,8 +1,15 @@
 require('dotenv').config();
 const fs = require('fs');
-const { Client, Intents, MessageEmbed } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ],
+  partials: [Partials.Channel, Partials.Message]
+});
 
 // קריאה ל־roles.json
 let roles = {};
@@ -25,7 +32,7 @@ async function sendLog(guild, roleKey, messageContent) {
     if (!ch.permissionOverwrites.cache.size) return false;
     return ch.permissionOverwrites.cache.some(po =>
       po.type === 'role' &&
-      po.allow.has('VIEW_CHANNEL') &&
+      po.allow.has('ViewChannel') &&
       ((roleKey === 'logs' && ch.name.includes('bot-logs')) ||
        (roleKey === 'highLogs' && ch.name.includes('loggers-management')))
     );
@@ -44,28 +51,28 @@ client.once('ready', () => {
     {
       name: 'cleaning',
       description: 'מוחק מספר הודעות (רק לסטאף)',
-      options: [{ name: 'amount', type: 'INTEGER', required: true, description: 'מספר ההודעות למחיקה' }]
+      options: [{ name: 'amount', type: 4, required: true, description: 'מספר ההודעות למחיקה' }] // 4 = INTEGER
     },
     {
       name: 'clearuser',
       description: 'מוחק הודעות של משתמש מסוים (רק לסטאף)',
       options: [
-        { name: 'user', type: 'USER', required: true, description: 'המשתמש' },
-        { name: 'amount', type: 'INTEGER', required: true, description: 'מספר הודעות' }
+        { name: 'user', type: 6, required: true, description: 'המשתמש' }, // 6 = USER
+        { name: 'amount', type: 4, required: true, description: 'מספר הודעות' }
       ]
     },
     {
       name: 'userinfo',
       description: 'מציג מידע על משתמש',
-      options: [{ name: 'target', type: 'USER', required: true, description: 'המשתמש' }]
+      options: [{ name: 'target', type: 6, required: true, description: 'המשתמש' }]
     },
     { name: 'serverinfo', description: 'מציג מידע על השרת' },
     {
       name: 'remind',
       description: 'שולח תזכורת למשתמש לאחר זמן מוגדר',
       options: [
-        { name: 'text', type: 'STRING', required: true, description: 'תוכן התזכורת' },
-        { name: 'minutes', type: 'INTEGER', required: true, description: 'מספר דקות' }
+        { name: 'text', type: 3, required: true, description: 'תוכן התזכורת' }, // 3 = STRING
+        { name: 'minutes', type: 4, required: true, description: 'מספר דקות' }   // 4 = INTEGER
       ]
     },
     { name: 'balance', description: 'מציג כסף וירטואלי של המשתמש' },
@@ -73,8 +80,8 @@ client.once('ready', () => {
       name: 'give',
       description: 'נותן כסף למשתמש אחר',
       options: [
-        { name: 'user', type: 'USER', required: true, description: 'למי נותנים' },
-        { name: 'amount', type: 'INTEGER', required: true, description: 'כמות כסף' }
+        { name: 'user', type: 6, required: true, description: 'למי נותנים' },
+        { name: 'amount', type: 4, required: true, description: 'כמות כסף' }
       ]
     },
     { name: 'verify', description: 'נותן למשתמש את רול Crime Permit' }
@@ -86,11 +93,11 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
   const { commandName, options, member, guild } = interaction;
-  const isStaff = member.permissions.has('MANAGE_MESSAGES');
+  const isStaff = member.permissions.has('ManageMessages');
 
   // /cleaning
   if (commandName === 'cleaning') {
-    if (!isStaff) return interaction.reply("אין לך הרשאות");
+    if (!isStaff) return interaction.reply({ content: "אין לך הרשאות", ephemeral: true });
     const amount = options.getInteger('amount');
     const messages = await interaction.channel.messages.fetch({ limit: amount });
     await interaction.channel.bulkDelete(messages, true);
@@ -100,7 +107,7 @@ client.on('interactionCreate', async interaction => {
 
   // /clearuser
   else if (commandName === 'clearuser') {
-    if (!isStaff) return interaction.reply("אין לך הרשאות");
+    if (!isStaff) return interaction.reply({ content: "אין לך הרשאות", ephemeral: true });
     const user = options.getUser('user');
     const amount = options.getInteger('amount');
     const fetched = await interaction.channel.messages.fetch({ limit: 100 });
@@ -114,23 +121,27 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'userinfo') {
     const target = options.getUser('target');
     const memberTarget = guild.members.cache.get(target.id);
-    const embed = new MessageEmbed()
+    const embed = new EmbedBuilder()
       .setTitle(`User Info: ${target.tag}`)
-      .addField('ID', target.id, true)
-      .addField('Roles', memberTarget.roles.cache.map(r => r.name).join(', '), false)
-      .addField('Joined', memberTarget.joinedAt.toDateString(), true)
-      .setColor('BLUE');
+      .addFields(
+        { name: 'ID', value: target.id, inline: true },
+        { name: 'Roles', value: memberTarget.roles.cache.map(r => r.name).join(', '), inline: false },
+        { name: 'Joined', value: memberTarget.joinedAt.toDateString(), inline: true }
+      )
+      .setColor('Blue');
     interaction.reply({ embeds: [embed] });
   }
 
   // /serverinfo
   else if (commandName === 'serverinfo') {
-    const embed = new MessageEmbed()
+    const embed = new EmbedBuilder()
       .setTitle(`Server Info: ${guild.name}`)
-      .addField('Members', guild.memberCount.toString(), true)
-      .addField('Channels', guild.channels.cache.size.toString(), true)
-      .addField('Roles', guild.roles.cache.size.toString(), true)
-      .setColor('GREEN');
+      .addFields(
+        { name: 'Members', value: guild.memberCount.toString(), inline: true },
+        { name: 'Channels', value: guild.channels.cache.size.toString(), inline: true },
+        { name: 'Roles', value: guild.roles.cache.size.toString(), inline: true }
+      )
+      .setColor('Green');
     interaction.reply({ embeds: [embed] });
   }
 
@@ -148,7 +159,7 @@ client.on('interactionCreate', async interaction => {
   else if (commandName === 'balance') {
     const id = member.id;
     if (!balances[id]) balances[id] = 0;
-    interaction.reply(`הכסף שלך: ${balances[id]} 💰`);
+    interaction.reply({ content: `הכסף שלך: ${balances[id]} 💰` });
   }
 
   // /give
@@ -157,18 +168,18 @@ client.on('interactionCreate', async interaction => {
     const amount = options.getInteger('amount');
     const giverId = member.id;
     if (!balances[giverId]) balances[giverId] = 0;
-    if (balances[giverId] < amount) return interaction.reply("אין לך מספיק כסף!");
+    if (balances[giverId] < amount) return interaction.reply({ content: "אין לך מספיק כסף!" });
     if (!balances[target.id]) balances[target.id] = 0;
     balances[giverId] -= amount;
     balances[target.id] += amount;
-    interaction.reply(`${member.user.tag} נתן ${amount} 💰 ל־${target.tag}`);
+    interaction.reply({ content: `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}` });
     sendLog(guild, 'highLogs', `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}`);
   }
 
   // /verify
   else if (commandName === 'verify') {
     const role = guild.roles.cache.find(r => r.name === roles.crime);
-    if (!role) return interaction.reply("Role לא נמצא!");
+    if (!role) return interaction.reply({ content: "Role לא נמצא!" });
     await member.roles.add(role);
     interaction.reply({ content: `קיבלת את הרול ${roles.crime}!`, ephemeral: true });
     sendLog(guild, 'logs', `${member.user.tag} קיבל את רול ${roles.crime}`);
