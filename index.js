@@ -1,190 +1,146 @@
 require('dotenv').config();
 const fs = require('fs');
-const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, PermissionFlagsBits, ChannelType, OverwriteType } = require('discord.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
   ],
-  partials: [Partials.Channel, Partials.Message]
+  partials: [Partials.Channel, Partials.Message],
 });
 
-// קריאה ל־roles.json
 let roles = {};
 try {
   const data = fs.readFileSync('roles.json', 'utf8');
   roles = JSON.parse(data);
 } catch (err) {
-  console.error("Error reading roles.json:", err);
+  console.error('Error reading roles.json:', err);
 }
 
-// אובייקט למעקב על כסף וירטואלי
 const balances = {};
 
-// פונקציה לשליחת לוגים לערוץ לפי רול
 async function sendLog(guild, roleKey, messageContent) {
   const roleName = roles[roleKey];
   if (!roleName) return;
 
-  const channel = guild.channels.cache.find(ch => {
-    if (!ch.permissionOverwrites.cache.size) return false;
-    return ch.permissionOverwrites.cache.some(po =>
-      po.type === 'role' &&
-      po.allow.has('ViewChannel') &&
-      ((roleKey === 'logs' && ch.name.includes('bot-logs')) ||
-       (roleKey === 'highLogs' && ch.name.includes('loggers-management')))
+  const channel = guild.channels.cache.find((ch) => {
+    if (ch.type !== ChannelType.GuildText) return false;
+    if (!ch.permissionOverwrites?.cache?.size) return false;
+
+    return ch.permissionOverwrites.cache.some((po) =>
+      po.type === OverwriteType.Role
+      && po.allow.has(PermissionFlagsBits.ViewChannel)
+      && ((roleKey === 'logs' && ch.name.includes('bot-logs'))
+        || (roleKey === 'highLogs' && ch.name.includes('loggers-management'))),
     );
   });
 
   if (!channel) return;
-  channel.send({ content: messageContent }).catch(() => {});
+  await channel.send({ content: messageContent }).catch(() => {});
 }
 
-// Ready event
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
-
-  // יצירת Slash Commands
-  client.application.commands.set([
-    {
-      name: 'cleaning',
-      description: 'מוחק מספר הודעות (רק לסטאף)',
-      options: [{ name: 'amount', type: 4, required: true, description: 'מספר ההודעות למחיקה' }] // 4 = INTEGER
-    },
-    {
-      name: 'clearuser',
-      description: 'מוחק הודעות של משתמש מסוים (רק לסטאף)',
-      options: [
-        { name: 'user', type: 6, required: true, description: 'המשתמש' }, // 6 = USER
-        { name: 'amount', type: 4, required: true, description: 'מספר הודעות' }
-      ]
-    },
-    {
-      name: 'userinfo',
-      description: 'מציג מידע על משתמש',
-      options: [{ name: 'target', type: 6, required: true, description: 'המשתמש' }]
-    },
-    { name: 'serverinfo', description: 'מציג מידע על השרת' },
-    {
-      name: 'remind',
-      description: 'שולח תזכורת למשתמש לאחר זמן מוגדר',
-      options: [
-        { name: 'text', type: 3, required: true, description: 'תוכן התזכורת' }, // 3 = STRING
-        { name: 'minutes', type: 4, required: true, description: 'מספר דקות' }   // 4 = INTEGER
-      ]
-    },
-    { name: 'balance', description: 'מציג כסף וירטואלי של המשתמש' },
-    {
-      name: 'give',
-      description: 'נותן כסף למשתמש אחר',
-      options: [
-        { name: 'user', type: 6, required: true, description: 'למי נותנים' },
-        { name: 'amount', type: 4, required: true, description: 'כמות כסף' }
-      ]
-    },
-    { name: 'verify', description: 'נותן למשתמש את רול Crime Permit' }
-  ]);
 });
 
-// Interaction event
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
 
-  const { commandName, options, member, guild } = interaction;
-  const isStaff = member.permissions.has('ManageMessages');
+  const { commandName, options, guild } = interaction;
+  const member = interaction.member;
+  const isStaff = member?.permissions?.has(PermissionFlagsBits.ManageMessages);
 
-  // /cleaning
-  if (commandName === 'cleaning') {
-    if (!isStaff) return interaction.reply({ content: "אין לך הרשאות", ephemeral: true });
-    const amount = options.getInteger('amount');
-    const messages = await interaction.channel.messages.fetch({ limit: amount });
-    await interaction.channel.bulkDelete(messages, true);
-    interaction.reply({ content: `נמחקו ${messages.size} הודעות`, ephemeral: true });
-    sendLog(guild, 'logs', `${member.user.tag} מחק ${messages.size} הודעות בערוץ ${interaction.channel.name}`);
-  }
+  try {
+    if (commandName === 'cleaning') {
+      if (!isStaff) return interaction.reply({ content: 'אין לך הרשאות', ephemeral: true });
+      const amount = options.getInteger('amount');
+      const messages = await interaction.channel.messages.fetch({ limit: amount });
+      await interaction.channel.bulkDelete(messages, true);
+      await interaction.reply({ content: `נמחקו ${messages.size} הודעות`, ephemeral: true });
+      await sendLog(guild, 'logs', `${member.user.tag} מחק ${messages.size} הודעות בערוץ ${interaction.channel.name}`);
+    } else if (commandName === 'clearuser') {
+      if (!isStaff) return interaction.reply({ content: 'אין לך הרשאות', ephemeral: true });
+      const user = options.getUser('user');
+      const amount = options.getInteger('amount');
+      const fetched = await interaction.channel.messages.fetch({ limit: 100 });
+      const userMessages = fetched.filter((msg) => msg.author.id === user.id).first(amount);
+      for (const msg of userMessages) {
+        await msg.delete().catch(() => {});
+      }
+      await interaction.reply({ content: `נמחקו ${userMessages.length} הודעות של ${user.tag}`, ephemeral: true });
+      await sendLog(guild, 'logs', `${member.user.tag} מחק ${userMessages.length} הודעות של ${user.tag}`);
+    } else if (commandName === 'userinfo') {
+      const target = options.getUser('target');
+      const memberTarget = guild.members.cache.get(target.id);
+      const embed = new EmbedBuilder()
+        .setTitle(`User Info: ${target.tag}`)
+        .addFields(
+          { name: 'ID', value: target.id, inline: true },
+          { name: 'Roles', value: memberTarget.roles.cache.map((r) => r.name).join(', '), inline: false },
+          { name: 'Joined', value: memberTarget.joinedAt.toDateString(), inline: true },
+        )
+        .setColor('Blue');
+      await interaction.reply({ embeds: [embed] });
+    } else if (commandName === 'serverinfo') {
+      const embed = new EmbedBuilder()
+        .setTitle(`Server Info: ${guild.name}`)
+        .addFields(
+          { name: 'Members', value: guild.memberCount.toString(), inline: true },
+          { name: 'Channels', value: guild.channels.cache.size.toString(), inline: true },
+          { name: 'Roles', value: guild.roles.cache.size.toString(), inline: true },
+        )
+        .setColor('Green');
+      await interaction.reply({ embeds: [embed] });
+    } else if (commandName === 'remind') {
+      const text = options.getString('text');
+      const minutes = options.getInteger('minutes');
+      await interaction.reply({ content: `אני אזכיר לך בעוד ${minutes} דקות!`, ephemeral: true });
+      setTimeout(() => {
+        interaction.user.send(`Reminder: ${text}`).catch(() => {});
+      }, minutes * 60000);
+    } else if (commandName === 'balance') {
+      const id = member.id;
+      if (!balances[id]) balances[id] = 0;
+      await interaction.reply({ content: `הכסף שלך: ${balances[id]} 💰` });
+    } else if (commandName === 'give') {
+      const target = options.getUser('user');
+      const amount = options.getInteger('amount');
+      const giverId = member.id;
+      if (!balances[giverId]) balances[giverId] = 0;
+      if (balances[giverId] < amount) return interaction.reply({ content: 'אין לך מספיק כסף!' });
+      if (!balances[target.id]) balances[target.id] = 0;
+      balances[giverId] -= amount;
+      balances[target.id] += amount;
+      await interaction.reply({ content: `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}` });
+      await sendLog(guild, 'highLogs', `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}`);
+    } else if (commandName === 'verify') {
+      await interaction.deferReply({ ephemeral: true });
 
-  // /clearuser
-  else if (commandName === 'clearuser') {
-    if (!isStaff) return interaction.reply({ content: "אין לך הרשאות", ephemeral: true });
-    const user = options.getUser('user');
-    const amount = options.getInteger('amount');
-    const fetched = await interaction.channel.messages.fetch({ limit: 100 });
-    const userMessages = fetched.filter(msg => msg.author.id === user.id).first(amount);
-    for (const msg of userMessages) await msg.delete().catch(() => {});
-    interaction.reply({ content: `נמחקו ${userMessages.length} הודעות של ${user.tag}`, ephemeral: true });
-    sendLog(guild, 'logs', `${member.user.tag} מחק ${userMessages.length} הודעות של ${user.tag}`);
-  }
+      const roleName = roles.crime;
+      const role = guild.roles.cache.find((r) => r.name === roleName);
+      if (!role) {
+        return interaction.editReply({ content: 'Role לא נמצא בשרת!' });
+      }
 
-  // /userinfo
-  else if (commandName === 'userinfo') {
-    const target = options.getUser('target');
-    const memberTarget = guild.members.cache.get(target.id);
-    const embed = new EmbedBuilder()
-      .setTitle(`User Info: ${target.tag}`)
-      .addFields(
-        { name: 'ID', value: target.id, inline: true },
-        { name: 'Roles', value: memberTarget.roles.cache.map(r => r.name).join(', '), inline: false },
-        { name: 'Joined', value: memberTarget.joinedAt.toDateString(), inline: true }
-      )
-      .setColor('Blue');
-    interaction.reply({ embeds: [embed] });
-  }
+      const guildMember = await guild.members.fetch(interaction.user.id);
+      if (guildMember.roles.cache.has(role.id)) {
+        return interaction.editReply({ content: `כבר יש לך את הרול ${roleName}!` });
+      }
 
-  // /serverinfo
-  else if (commandName === 'serverinfo') {
-    const embed = new EmbedBuilder()
-      .setTitle(`Server Info: ${guild.name}`)
-      .addFields(
-        { name: 'Members', value: guild.memberCount.toString(), inline: true },
-        { name: 'Channels', value: guild.channels.cache.size.toString(), inline: true },
-        { name: 'Roles', value: guild.roles.cache.size.toString(), inline: true }
-      )
-      .setColor('Green');
-    interaction.reply({ embeds: [embed] });
-  }
-
-  // /remind
-  else if (commandName === 'remind') {
-    const text = options.getString('text');
-    const minutes = options.getInteger('minutes');
-    interaction.reply({ content: `אני אזכיר לך בעוד ${minutes} דקות!`, ephemeral: true });
-    setTimeout(() => {
-      interaction.user.send(`Reminder: ${text}`).catch(() => {});
-    }, minutes * 60000);
-  }
-
-  // /balance
-  else if (commandName === 'balance') {
-    const id = member.id;
-    if (!balances[id]) balances[id] = 0;
-    interaction.reply({ content: `הכסף שלך: ${balances[id]} 💰` });
-  }
-
-  // /give
-  else if (commandName === 'give') {
-    const target = options.getUser('user');
-    const amount = options.getInteger('amount');
-    const giverId = member.id;
-    if (!balances[giverId]) balances[giverId] = 0;
-    if (balances[giverId] < amount) return interaction.reply({ content: "אין לך מספיק כסף!" });
-    if (!balances[target.id]) balances[target.id] = 0;
-    balances[giverId] -= amount;
-    balances[target.id] += amount;
-    interaction.reply({ content: `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}` });
-    sendLog(guild, 'highLogs', `${member.user.tag} נתן ${amount} 💰 ל־${target.tag}`);
-  }
-
-  // /verify
-  else if (commandName === 'verify') {
-    const role = guild.roles.cache.find(r => r.name === roles.crime);
-    if (!role) return interaction.reply({ content: "Role לא נמצא!" });
-    await member.roles.add(role);
-    interaction.reply({ content: `קיבלת את הרול ${roles.crime}!`, ephemeral: true });
-    sendLog(guild, 'logs', `${member.user.tag} קיבל את רול ${roles.crime}`);
+      await guildMember.roles.add(role);
+      await interaction.editReply({ content: `קיבלת את הרול ${roleName}!` });
+      await sendLog(guild, 'logs', `${guildMember.user.tag} קיבל את רול ${roleName}`);
+    }
+  } catch (err) {
+    console.error('Interaction error:', err);
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: 'אירעה שגיאה בביצוע הפקודה!' }).catch(() => {});
+    } else {
+      await interaction.reply({ content: 'אירעה שגיאה בביצוע הפקודה!', ephemeral: true }).catch(() => {});
+    }
   }
 });
 
-// התחברות
 client.login(process.env.TOKEN);
