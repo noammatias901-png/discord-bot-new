@@ -1,6 +1,6 @@
 require('dotenv').config();
 const fs = require('fs');
-const { Client, Intents, Collection, MessageEmbed } = require('discord.js');
+const { Client, Intents, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 
@@ -16,24 +16,30 @@ try {
 // אובייקט למעקב על כסף וירטואלי
 const balances = {};
 
-// פונקציה לשליחת לוגים לערוץ
+// פונקציה לשליחת לוגים לערוץ לפי רול
 async function sendLog(guild, roleKey, messageContent) {
   const roleName = roles[roleKey];
   if (!roleName) return;
 
   const channel = guild.channels.cache.find(ch => {
-    const perms = ch.permissionOverwrites.cache;
-    return perms.some(po => po.type === 'role' && po.allow.has('VIEW_CHANNEL') && ch.name.includes('bot-logs') || ch.name.includes('loggers-management'));
+    if (!ch.permissionOverwrites.cache.size) return false;
+    return ch.permissionOverwrites.cache.some(po =>
+      po.type === 'role' &&
+      po.allow.has('VIEW_CHANNEL') &&
+      ((roleKey === 'logs' && ch.name.includes('bot-logs')) ||
+       (roleKey === 'highLogs' && ch.name.includes('loggers-management')))
+    );
   });
 
   if (!channel) return;
-
   channel.send({ content: messageContent }).catch(() => {});
 }
 
 // Ready event
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
+
+  // יצירת Slash Commands
   client.application.commands.set([
     {
       name: 'cleaning',
@@ -101,7 +107,7 @@ client.on('interactionCreate', async interaction => {
     const userMessages = fetched.filter(msg => msg.author.id === user.id).first(amount);
     for (const msg of userMessages) await msg.delete().catch(() => {});
     interaction.reply({ content: `נמחקו ${userMessages.length} הודעות של ${user.tag}`, ephemeral: true });
-    sendLog(guild, 'logs', `${member.user.tag} מחק ${userMessages.length} הודעות של ${user.tag} בערוץ ${interaction.channel.name}`);
+    sendLog(guild, 'logs', `${member.user.tag} מחק ${userMessages.length} הודעות של ${user.tag}`);
   }
 
   // /userinfo
