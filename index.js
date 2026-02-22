@@ -17,8 +17,18 @@ const {
   ChannelType,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  PermissionFlagsBits
 } = require('discord.js');
+
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+
+if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
+  console.error("❌ חסר TOKEN / CLIENT_ID / GUILD_ID ב-ENV");
+  process.exit(1);
+}
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
@@ -28,35 +38,33 @@ const client = new Client({
 const ROLE_CRIME = "Crime Permit";
 const ROLE_BLACKMARKET = "Black market buyer";
 
-// ===== Environment Variables של Render =====
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
-
-// ===== רישום פקודות אוטומטי =====
+// ===== רישום פקודות =====
 const commands = [
   new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('שולח את הודעת בחירת הרולים'),
+    .setDescription('שולח את הודעת בחירת הרולים')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
   new SlashCommandBuilder()
     .setName('ping')
     .setDescription('בודק אם הבוט חי')
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
+
 (async () => {
   try {
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
-    console.log('Slash commands registered.');
+    console.log('✅ Slash commands registered.');
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error registering slash commands:", err);
   }
 })();
 
-// ===== פונקציה לשליחת לוגים =====
+// ===== לוגים =====
 async function sendLog(guild, messageContent) {
   const channel = guild.channels.cache.find(
     ch => ch.type === ChannelType.GuildText && ch.name === '🤖-bot-logs'
@@ -65,73 +73,94 @@ async function sendLog(guild, messageContent) {
   await channel.send({ content: messageContent }).catch(() => {});
 }
 
-// ===== אירוע מוכן =====
+// ===== מוכן =====
 client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 // ===== אינטראקציות =====
 client.on('interactionCreate', async (interaction) => {
 
-  // ===== Slash Commands =====
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === 'setup') {
+  try {
 
-      const embed = new EmbedBuilder()
-        .setTitle('🎭 Role Selection')
-        .setDescription('בחר את הרול שאתה רוצה לקבל:')
-        .setColor('Red');
+    // ===== Slash =====
+    if (interaction.isChatInputCommand()) {
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('crime_role')
-          .setLabel('Crime Permit')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId('blackmarket_role')
-          .setLabel('Black market buyer')
-          .setStyle(ButtonStyle.Secondary)
-      );
+      if (interaction.commandName === 'setup') {
 
-      await interaction.reply({ embeds: [embed], components: [row] });
+        const embed = new EmbedBuilder()
+          .setTitle('🎭 Role Selection')
+          .setDescription('בחר את הרול שאתה רוצה לקבל:')
+          .setColor('Red');
 
-    } else if (interaction.commandName === 'ping') {
-      await interaction.reply({ content: 'pong 🏓' });
-    }
-  }
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('crime_role')
+            .setLabel('Crime Permit')
+            .setStyle(ButtonStyle.Danger),
 
-  // ===== לחיצה על כפתורים =====
-  if (interaction.isButton()) {
+          new ButtonBuilder()
+            .setCustomId('blackmarket_role')
+            .setLabel('Black market buyer')
+            .setStyle(ButtonStyle.Secondary)
+        );
 
-    const member = await interaction.guild.members.fetch(interaction.user.id);
+        await interaction.reply({ embeds: [embed], components: [row] });
+      }
 
-    let roleName;
-    if (interaction.customId === 'crime_role') roleName = ROLE_CRIME;
-    else if (interaction.customId === 'blackmarket_role') roleName = ROLE_BLACKMARKET;
-    else return;
-
-    const role = interaction.guild.roles.cache.find(r => r.name === roleName);
-    if (!role) return interaction.reply({ content: 'הרול לא נמצא!', ephemeral: true });
-
-    if (member.roles.cache.has(role.id)) {
-      return interaction.reply({ content: 'כבר יש לך את הרול הזה ✅', ephemeral: true });
+      if (interaction.commandName === 'ping') {
+        await interaction.reply({ content: 'pong 🏓' });
+      }
     }
 
-    try {
+    // ===== כפתורים =====
+    if (interaction.isButton()) {
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const member = await interaction.guild.members.fetch(interaction.user.id);
+
+      let roleName;
+      if (interaction.customId === 'crime_role') roleName = ROLE_CRIME;
+      else if (interaction.customId === 'blackmarket_role') roleName = ROLE_BLACKMARKET;
+      else return;
+
+      const role = interaction.guild.roles.cache.find(r => r.name === roleName);
+
+      if (!role)
+        return interaction.editReply({ content: '❌ הרול לא נמצא!' });
+
+      if (member.roles.cache.has(role.id))
+        return interaction.editReply({ content: 'כבר יש לך את הרול הזה ✅' });
+
+      // בדיקת היררכיה
+      if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles))
+        return interaction.editReply({ content: '❌ לבוט אין הרשאת Manage Roles' });
+
+      if (role.position >= interaction.guild.members.me.roles.highest.position)
+        return interaction.editReply({ content: '❌ הרול מעל הבוט בהיררכיה' });
+
       await member.roles.add(role);
 
-      await interaction.reply({ content: `🎉 קיבלת את הרול ${roleName}!`, ephemeral: true });
+      await interaction.editReply({
+        content: `🎉 קיבלת את הרול ${roleName}!`
+      });
 
-      await sendLog(interaction.guild, `🟢 ${member.user.tag} קיבל את הרול ${roleName}`);
+      await sendLog(interaction.guild,
+        `🟢 ${member.user.tag} קיבל את הרול ${roleName}`
+      );
+    }
 
-    } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: '❌ שגיאה במתן הרול. בדוק הרשאות לבוט.', ephemeral: true });
+  } catch (err) {
+    console.error("❌ Interaction Error:", err);
+
+    if (interaction.replied || interaction.deferred) {
+      await interaction.editReply({ content: "❌ קרתה שגיאה במערכת" }).catch(() => {});
+    } else {
+      await interaction.reply({ content: "❌ קרתה שגיאה במערכת", ephemeral: true }).catch(() => {});
     }
   }
-
 });
 
-// ===== התחברות לדיסקורד =====
-const TOKEN = process.env.TOKEN;
+// ===== התחברות =====
 client.login(TOKEN);
