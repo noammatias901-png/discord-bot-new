@@ -67,12 +67,18 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 // ===== לוגים =====
 async function sendLog(guild, messageContent) {
   const channel = guild.channels.cache.find(
-    ch => ch.type === ChannelType.GuildText && ch.name === '🤖-bot-logs'
+    ch => ch.name === '🤖-bot-logs'
   );
-  if (!channel) return;
-  await channel.send({ content: messageContent }).catch(() => {});
-}
 
+  if (!channel) {
+    console.log("❌ לא נמצא חדר לוגים");
+    return;
+  }
+
+  channel.send({ content: messageContent }).catch(err => {
+    console.error("❌ שגיאה בשליחת לוג:", err);
+  });
+}
 // ===== מוכן =====
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -89,10 +95,16 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.commandName === 'setup') {
 
         const embed = new EmbedBuilder()
-          .setTitle('🎭 Role Selection')
-          .setDescription('בחר את הרול שאתה רוצה לקבל:')
-          .setColor('Red');
+  .setTitle('🛡️ מערכת אימות - PG-CRIME')
+  .setDescription(
+`על מנת לקבל גישה לכל ערוצי השרת ולהתחיל לשחק, עליך לעבור אימות קצר.
 
+בלחיצה על הכפתור למטה:
+• תקבלו את הרול הרשמי של חברי הקהילה.
+• כל החדרים ייפתחו עבורכם.
+• תוכלו להתחיל להציע הצעות ולדבר עם כולם.`
+  )
+  .setColor('Red');
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('crime_role')
