@@ -34,9 +34,10 @@ const client = new Client({
 });
 
 // ===== רולים =====
-const ROLES = {
+ const ROLES = {
   CRIME: "Crime Permit",
   SOLO_CRIME: "Solo Crime",
+  FAMILY: "crime family",
   LOGS: "logs"
 };
 
@@ -85,10 +86,13 @@ async function sendSetupMessage(guild) {
 לחץ על אחד הכפתורים כדי לקבל רול.
 
 **Crime Permit**
-גישה לפעילות פלילית בשרת
+רול המחוייב לכל שחקן בשרת אשר משתייך לארגון או כסולו
 
 **Solo Crime**
-הרשאה לפעילות פלילית אישית
+רול המקשר אותך לפעילות פשע כסולו
+
+**crime family**
+רול המקשר אותך למשפחת פשע
 
 לחיצה חוזרת תסיר את הרול (Toggle).`)
   .setThumbnail(client.user.displayAvatarURL())
@@ -102,7 +106,12 @@ async function sendSetupMessage(guild) {
   new ButtonBuilder()
     .setCustomId('solo_crime_role')
     .setLabel(ROLES.SOLO_CRIME)
-    .setStyle(ButtonStyle.Secondary)
+    .setStyle(ButtonStyle.Secondary),
+
+  new ButtonBuilder()
+    .setCustomId('family_role')
+    .setLabel(ROLES.FAMILY)
+    .setStyle(ButtonStyle.Success)
 );
 
   await channel.send({ embeds: [embed], components: [row] });
@@ -127,9 +136,10 @@ client.on('interactionCreate', async (interaction) => {
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
 
-    const roleMap = {
+   const roleMap = {
   crime_role: ROLES.CRIME,
-  solo_crime_role: ROLES.SOLO_CRIME
+  solo_crime_role: ROLES.SOLO_CRIME,
+  family_role: ROLES.FAMILY
 };
     const roleName = roleMap[interaction.customId];
     if (!roleName) return;
