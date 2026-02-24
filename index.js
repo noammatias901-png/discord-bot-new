@@ -79,7 +79,7 @@ async function sendSetupMessage(guild) {
     .setColor('#FF0000')
     .setTitle('🛡️ מערכת אימות - PG-CRIME')
     .setDescription(
-` ברוך הבא לשרת!
+`ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
 Crime Permit　　　　　│　　　　　Black Market Buyer
