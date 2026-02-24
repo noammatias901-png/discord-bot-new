@@ -36,7 +36,7 @@ const client = new Client({
 // ===== רולים =====
 const ROLES = {
   CRIME: "Crime Permit",
-  BLACKMARKET: "Black market buyer",
+  SOLO_CRIME: "Solo Crime",
   LOGS: "logs"
 };
 
@@ -79,33 +79,31 @@ async function sendSetupMessage(guild) {
   await cleanOldSetupMessages(channel);
 
   const embed = new EmbedBuilder()
-    .setColor('#FF0000')
-    .setTitle('🛡️ מערכת אימות - PG-CRIME')
-    .setDescription(`ברוך הבא לשרת!
+  .setColor('#FF0000')
+  .setTitle('🛡️ מערכת אימות - PG-CRIME')
+  .setDescription(`ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
 **Crime Permit**
 גישה לפעילות פלילית בשרת
 
-**Black Market Buyer**
-הרשאה לרכישה בשוק השחור
+**Solo Crime**
+הרשאה לפעילות פלילית אישית
 
 לחיצה חוזרת תסיר את הרול (Toggle).`)
+  .setThumbnail(client.user.displayAvatarURL())
+  .setFooter({ text: 'PG-CRIME • © All Rights Reserved To No4M', iconURL: client.user.displayAvatarURL() });
+ const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId('crime_role')
+    .setLabel(ROLES.CRIME)
+    .setStyle(ButtonStyle.Danger),
 
-    .setThumbnail(client.user.displayAvatarURL())
-    .setFooter({ text: 'PG-CRIME • © All Rights Reserved To No4M', iconURL: client.user.displayAvatarURL() });
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('crime_role')
-      .setLabel(ROLES.CRIME)
-      .setStyle(ButtonStyle.Danger),
-
-    new ButtonBuilder()
-      .setCustomId('blackmarket_role')
-      .setLabel(ROLES.BLACKMARKET)
-      .setStyle(ButtonStyle.Secondary)
-  );
+  new ButtonBuilder()
+    .setCustomId('solo_crime_role')
+    .setLabel(ROLES.SOLO_CRIME)
+    .setStyle(ButtonStyle.Secondary)
+);
 
   await channel.send({ embeds: [embed], components: [row] });
 }
@@ -130,9 +128,9 @@ client.on('interactionCreate', async (interaction) => {
     const member = await interaction.guild.members.fetch(interaction.user.id);
 
     const roleMap = {
-      crime_role: ROLES.CRIME,
-      blackmarket_role: ROLES.BLACKMARKET
-    };
+  crime_role: ROLES.CRIME,
+  solo_crime_role: ROLES.SOLO_CRIME
+};
     const roleName = roleMap[interaction.customId];
     if (!roleName) return;
 
