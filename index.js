@@ -79,9 +79,15 @@ async function sendSetupMessage(guild) {
     .setColor('#FF0000')
     .setTitle('🛡️ מערכת אימות - PG-CRIME')
     .setDescription(
-`ברוך הבא לשרת!  
-לחץ על אחד הכפתורים כדי לקבל רול.  
-לחיצה חוזרת תסיר את הרול (Toggle).`
+` ברוך הבא לשרת!
+לחץ על אחד הכפתורים כדי לקבל רול.
+
+Crime Permit　　　　　│　　　　　Black Market Buyer
+גישה לפעילות פלילית בשרת　│　הרשאה לרכישה בשוק השחור
+
+לחיצה חוזרת תסיר את הרול (Toggle).'
+  
+
     )
     .setThumbnail(client.user.displayAvatarURL())
     .setFooter({ text: 'PG-CRIME • אוטומטי', iconURL: client.user.displayAvatarURL() });
