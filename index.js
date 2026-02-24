@@ -21,16 +21,16 @@ if (!TOKEN || !GUILD_ID) {
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,            // כדי לגשת לשרת
-    GatewayIntentBits.GuildMembers,      // כדי לגשת לחברי השרת
-    GatewayIntentBits.GuildMessages,     // אם קורא הודעות
-    GatewayIntentBits.MessageContent     // חובה לקרוא הודעות ותוכן (ל‑DM Bot)
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ],
-partials: ['CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'USER'] // חובה ל-DM ולחלקי מידע
+  partials: ['CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'USER']
 });
 
 // ===== רולים =====
- const ROLES = {
+const ROLES = {
   CRIME: "Crime Permit",
   SOLO_CRIME: "Solo Crime",
   FAMILY: "crime family",
@@ -42,7 +42,7 @@ async function sendLog(guild, member, actionText) {
   const channel = guild.channels.cache.find(ch => ch.name === LOG_CHANNEL_NAME);
   if (!channel) return;
 
-  // שולח לוג רק אם למשתמש יש רול logs
+
   if (!member.roles.cache.some(r => r.name === ROLES.LOGS)) return;
 
   const embed = new EmbedBuilder()
@@ -68,17 +68,17 @@ async function cleanOldSetupMessages(channel) {
 async function sendSetupMessage(guild) {
   const channel = guild.channels.cache.find(ch => ch.name === SETUP_CHANNEL_NAME);
   if (!channel) {
-    console.error("❌ חדר verify לא נמצא"); // שגיאה בלוגים
-    return; // יוצא מהפונקציה כדי לא להריץ שאר הקוד
+    console.error("❌ חדר verify לא נמצא");
+    return;
   }
 
-  // מחיקת הודעות ישנות
+
   await cleanOldSetupMessages(channel);
 
   const embed = new EmbedBuilder()
-  .setColor('#FF0000')
-  .setTitle('🛡️ מערכת אימות - PG-CRIME')
-  .setDescription(`ברוך הבא לשרת!
+    .setColor('#FF0000')
+    .setTitle('🛡️ מערכת אימות - PG-CRIME')
+    .setDescription(`ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
 **Crime Permit**
@@ -91,24 +91,25 @@ async function sendSetupMessage(guild) {
 רול המקשר אותך למשפחת פשע
 
 לחיצה חוזרת תסיר את הרול (Toggle).`)
-  .setThumbnail(client.user.displayAvatarURL())
-  .setFooter({ text: 'PG-CRIME • © All Rights Reserved To No4M', iconURL: client.user.displayAvatarURL() });
- const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId('crime_role')
-    .setLabel(ROLES.CRIME)
-    .setStyle(ButtonStyle.Danger),
+    .setThumbnail(client.user.displayAvatarURL())
+    .setFooter({ text: 'PG-CRIME • © All Rights Reserved To No4M', iconURL: client.user.displayAvatarURL() });
 
-  new ButtonBuilder()
-    .setCustomId('solo_crime_role')
-    .setLabel(ROLES.SOLO_CRIME)
-    .setStyle(ButtonStyle.Secondary),
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('crime_role')
+      .setLabel(ROLES.CRIME)
+      .setStyle(ButtonStyle.Danger),
 
-  new ButtonBuilder()
-    .setCustomId('family_role')
-    .setLabel(ROLES.FAMILY)
-    .setStyle(ButtonStyle.Success)
-);
+    new ButtonBuilder()
+      .setCustomId('solo_crime_role')
+      .setLabel(ROLES.SOLO_CRIME)
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId('family_role')
+      .setLabel(ROLES.FAMILY)
+      .setStyle(ButtonStyle.Success)
+  );
 
   await channel.send({ embeds: [embed], components: [row] });
 }
@@ -128,50 +129,57 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   try {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
 
-   const roleMap = {
-  crime_role: ROLES.CRIME,
-  solo_crime_role: ROLES.SOLO_CRIME,
-  family_role: ROLES.FAMILY
-};
+    const roleMap = {
+      crime_role: ROLES.CRIME,
+      solo_crime_role: ROLES.SOLO_CRIME,
+      family_role: ROLES.FAMILY
+    };
     const roleName = roleMap[interaction.customId];
-    if (!roleName) return;
+    if (!roleName) {
+      await interaction.reply({ content: '❌ רול לא מזוהה', ephemeral: true });
+      return;
+    }
 
     const role = interaction.guild.roles.cache.find(r => r.name === roleName);
-    if (!role) return interaction.editReply({ content: '❌ הרול לא נמצא!' });
+    if (!role) {
+      await interaction.reply({ content: '❌ הרול לא נמצא!', ephemeral: true });
+      return;
+    }
 
     const botMember = interaction.guild.members.me;
-    if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles))
-      return interaction.editReply({ content: '❌ לבוט אין הרשאת Manage Roles' });
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      await interaction.reply({ content: '❌ לבוט אין הרשאת Manage Roles', ephemeral: true });
+      return;
+    }
 
-    if (role.position >= botMember.roles.highest.position)
-      return interaction.editReply({ content: '❌ הרול מעל הבוט בהיררכיה' });
+    if (role.position >= botMember.roles.highest.position) {
+      await interaction.reply({ content: '❌ הרול מעל הבוט בהיררכיה', ephemeral: true });
+      return;
+    }
 
     // 🔄 Toggle: אם כבר יש → מסיר
     if (member.roles.cache.has(role.id)) {
       await member.roles.remove(role);
-      await interaction.editReply({ content: `🟡 הרול ${roleName} הוסר ממך.` });
-
+      await interaction.reply({ content: `🟡 הרול ${roleName} הוסר ממך.`, ephemeral: true });
       await sendLog(interaction.guild, member, `הוסר הרול ${roleName}`);
       return;
     }
 
     // אם אין רול → מוסיף
     await member.roles.add(role);
-    await interaction.editReply({ content: `🎉 קיבלת את הרול ${roleName}!` });
-
+    await interaction.reply({ content: `🎉 קיבלת את הרול ${roleName}!`, ephemeral: true });
     await sendLog(interaction.guild, member, `קיבל את הרול ${roleName}`);
 
   } catch (err) {
     console.error("❌ Interaction Error:", err);
-
     if (interaction.replied || interaction.deferred) {
       await interaction.editReply({ content: "❌ קרתה שגיאה במערכת" }).catch(() => {});
     } else {
-      await interaction.reply({ content: "❌ קרתה שגיאה במערכת", flags: MessageFlags.Ephemeral }).catch(() => {});
+      await interaction.reply({ content: "❌ קרתה שגיאה במערכת", ephemeral: true }).catch(() => {});
     }
   }
 });
