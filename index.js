@@ -70,7 +70,10 @@ async function cleanOldSetupMessages(channel) {
 // ===== שליחת הודעת Setup חדשה עם Toggle =====
 async function sendSetupMessage(guild) {
   const channel = guild.channels.cache.find(ch => ch.name === SETUP_CHANNEL_NAME);
-  if (!channel) return console.log("❌ חדר verify לא נמצא");
+  if (!channel) {
+    console.error("❌ חדר verify לא נמצא"); // שגיאה בלוגים
+    return; // יוצא מהפונקציה כדי לא להריץ שאר הקוד
+  }
 
   // מחיקת הודעות ישנות
   await cleanOldSetupMessages(channel);
@@ -78,8 +81,7 @@ async function sendSetupMessage(guild) {
   const embed = new EmbedBuilder()
     .setColor('#FF0000')
     .setTitle('🛡️ מערכת אימות - PG-CRIME')
-    .setDescription(
-const verifyMessage = `
+    .setDescription(`
 ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
@@ -87,10 +89,7 @@ Crime Permit　　　　　│　　　　　Black Market Buyer
 גישה לפעילות פלילית בשרת　│　הרשאה לרכישה בשוק השחור
 
 לחיצה חוזרת תסיר את הרול (Toggle).
-`;
-  
-
-    )
+`)
     .setThumbnail(client.user.displayAvatarURL())
     .setFooter({ text: 'PG-CRIME • אוטומטי', iconURL: client.user.displayAvatarURL() });
 
