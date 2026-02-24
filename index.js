@@ -81,11 +81,15 @@ async function sendSetupMessage(guild) {
   const embed = new EmbedBuilder()
     .setColor('#FF0000')
     .setTitle('🛡️ מערכת אימות - PG-CRIME')
-    .setDescription(`ברוך הבא לשרת!
+    .setDescription(`🛡️ מערכת אימות - PG-CRIME
+ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
-Crime Permit　　　　　　│　　　　　Black Market Buyer
-גישה לפעילות פלילית בשרת　│　הרשאה לרכישה בשוק השחור
+**Crime Permit**
+גישה לפעילות פלילית בשרת
+
+**Black Market Buyer**
+הרשאה לרכישה בשוק השחור
 
 לחיצה חוזרת תסיר את הרול (Toggle).`)
     .setThumbnail(client.user.displayAvatarURL())
