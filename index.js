@@ -8,17 +8,7 @@ app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
 
 // ===== Discord =====
-const { 
-  Client, 
-  GatewayIntentBits, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  EmbedBuilder,
-  PermissionFlagsBits,
-  MessageFlags
-} = require('discord.js');
-
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const TOKEN = process.env.TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 const SETUP_CHANNEL_NAME = "✅┃verify"; // חדר setup
@@ -30,7 +20,13 @@ if (!TOKEN || !GUILD_ID) {
 }
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+  intents: [
+    GatewayIntentBits.Guilds,            // כדי לגשת לשרת
+    GatewayIntentBits.GuildMembers,      // כדי לגשת לחברי השרת
+    GatewayIntentBits.GuildMessages,     // אם קורא הודעות
+    GatewayIntentBits.MessageContent     // חובה לקרוא הודעות ותוכן (ל‑DM Bot)
+  ],
+partials: ['CHANNEL', 'GUILD_MEMBER', 'MESSAGE', 'USER'] // חובה ל-DM ולחלקי מידע
 });
 
 // ===== רולים =====
