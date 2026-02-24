@@ -81,8 +81,7 @@ async function sendSetupMessage(guild) {
   const embed = new EmbedBuilder()
     .setColor('#FF0000')
     .setTitle('🛡️ מערכת אימות - PG-CRIME')
-    .setDescription(`🛡️ מערכת אימות - PG-CRIME
-ברוך הבא לשרת!
+    .setDescription(`ברוך הבא לשרת!
 לחץ על אחד הכפתורים כדי לקבל רול.
 
 **Crime Permit**
@@ -92,8 +91,9 @@ async function sendSetupMessage(guild) {
 הרשאה לרכישה בשוק השחור
 
 לחיצה חוזרת תסיר את הרול (Toggle).`)
+
     .setThumbnail(client.user.displayAvatarURL())
-    .setFooter({ text: 'PG-CRIME • אוטומטי', iconURL: client.user.displayAvatarURL() });
+    .setFooter({ text: 'PG-CRIME • © All Rights Reserved To No4M', iconURL: client.user.displayAvatarURL() });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
